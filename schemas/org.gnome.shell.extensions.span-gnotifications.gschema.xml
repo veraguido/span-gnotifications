@@ -1,0 +1,98 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<schemalist>
+  <schema id="org.gnome.shell.extensions.span-gnotifications"
+          path="/org/gnome/shell/extensions/span-gnotifications/">
+
+    <!-- Layout -->
+    <key name="notification-position" type="s">
+      <default>'top-right'</default>
+      <summary>Notification corner position</summary>
+      <description>Where banners appear: top-left, top-center, top-right, bottom-left, bottom-center, bottom-right</description>
+    </key>
+
+    <key name="monitor-mode" type="s">
+      <default>'primary-only'</default>
+      <summary>Multi-monitor mode</summary>
+      <description>primary-only, follow-mouse, or duplicate-all</description>
+    </key>
+
+    <!-- Dimensions -->
+    <key name="notification-width" type="i">
+      <default>400</default>
+      <range min="200" max="900"/>
+      <summary>Banner width in pixels</summary>
+    </key>
+
+    <key name="notification-padding" type="i">
+      <default>12</default>
+      <range min="0" max="48"/>
+      <summary>Inner padding in pixels</summary>
+    </key>
+
+    <!-- Colours -->
+    <key name="background-color" type="s">
+      <default>'rgba(54,54,58,0.94)'</default>
+      <summary>Background colour (CSS rgba)</summary>
+    </key>
+
+    <key name="text-color" type="s">
+      <default>'#ffffff'</default>
+      <summary>Text colour (CSS colour)</summary>
+    </key>
+
+    <!-- Typography -->
+    <key name="font-size" type="i">
+      <default>11</default>
+      <range min="6" max="28"/>
+      <summary>Font size in points</summary>
+    </key>
+
+    <key name="font-weight" type="s">
+      <default>'normal'</default>
+      <summary>Font weight: normal or bold</summary>
+    </key>
+
+    <!-- Icon -->
+    <key name="icon-size" type="i">
+      <default>48</default>
+      <range min="16" max="96"/>
+      <summary>Icon size in pixels</summary>
+    </key>
+
+    <key name="show-icon" type="b">
+      <default>true</default>
+      <summary>Show notification icon</summary>
+    </key>
+
+    <!-- Fullscreen -->
+    <key name="show-in-fullscreen" type="b">
+      <default>false</default>
+      <summary>Show notifications while a window is in fullscreen</summary>
+      <description>When enabled, all notifications appear even when an application is running in fullscreen mode.</description>
+    </key>
+
+    <!-- Sound -->
+    <key name="sound-override-enabled" type="b">
+      <default>false</default>
+      <summary>Override notification sound</summary>
+    </key>
+
+    <key name="sound-file" type="s">
+      <default>''</default>
+      <summary>Custom sound file path; empty string means silence</summary>
+    </key>
+
+    <key name="notification-timeout" type="i">
+      <default>4</default>
+      <range min="1" max="30"/>
+      <summary>Notification display time in seconds</summary>
+    </key>
+
+    <key name="notification-margin" type="i">
+      <default>0</default>
+      <range min="0" max="100"/>
+      <summary>Gap between banner and screen edges in pixels</summary>
+    </key>
+
+  </schema>
+</schemalist>

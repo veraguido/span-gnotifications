@@ -1,0 +1,9 @@
+{
+  "uuid": "span-gnotifications@veraguido.proton.me",
+  "name": "Span GNotifications",
+  "description": "Customise GNOME notification appearance and distribute them across monitors",
+  "version": 1,
+  "shell-version": ["45", "46", "47", "48", "49", "50"],
+  "url": "",
+  "settings-schema": "org.gnome.shell.extensions.span-gnotifications"
+}
