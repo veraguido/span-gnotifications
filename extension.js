@@ -389,6 +389,7 @@ export default class SpanGNotifications extends Extension {
         // preferred-height can span the full container, making START/END a no-op.
         const container = new St.Widget({
             visible: true,
+            clip_to_allocation: true,
             layout_manager: new Clutter.BoxLayout({orientation: Clutter.Orientation.VERTICAL}),
         });
 
@@ -405,15 +406,30 @@ export default class SpanGNotifications extends Extension {
         Main.layoutManager.addChrome(container);
         this._mirrors.push({banner, container});
 
-        // Animate in using translation so the layout is not disturbed
-        const slideH = 80; // rough pre-layout height estimate
-        banner.translation_y = this._isBottom() ? slideH : -slideH;
+        // Start fully off-screen (200px is safely larger than any banner height;
+        // clip_to_allocation on the container hides it until it enters the work area).
+        const slideDir = this._isBottom() ? 1 : -1;
         banner.opacity = 0;
+        banner.set_pivot_point(0.5, 0.5);
+        banner.scale_x = 0.9;
+        banner.scale_y = 0.9;
+        banner.translation_y = slideDir * 200;
+
+        // Opacity + scale pop — matches the primary banner's own show animation.
         banner.ease({
             opacity: 255,
-            translation_y: 0,
+            scale_x: 1.0,
+            scale_y: 1.0,
             duration: MessageTray.ANIMATION_TIME,
             mode: Clutter.AnimationMode.EASE_OUT_BACK,
+        });
+
+        // Slide in with EASE_OUT_QUAD so there is no directional overshoot past the
+        // final position — that overshoot is what made the animation look double-fired.
+        banner.ease({
+            translation_y: 0,
+            duration: MessageTray.ANIMATION_TIME,
+            mode: Clutter.AnimationMode.EASE_OUT_QUAD,
         });
 
         // Fallback: clean up if the notification object itself is destroyed
