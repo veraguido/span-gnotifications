@@ -231,18 +231,18 @@ export default class SpanGNotificationsPrefs extends ExtensionPreferences {
             icon_name: 'audio-volume-high-symbolic',
         });
 
-        const group = new Adw.PreferencesGroup({
-            title: _('Sound override'),
-            description: _('Replace or silence the default notification sound.'),
+        // --- Global override group ---
+        const globalGroup = new Adw.PreferencesGroup({
+            title: _('Global sound override'),
+            description: _('Replace or silence the default notification sound for all applications. Falls back to OS sound when disabled.'),
         });
-        page.add(group);
+        page.add(globalGroup);
 
         const enableRow = new Adw.SwitchRow({title: _('Override notification sound')});
         settings.bind('sound-override-enabled', enableRow, 'active',
             Gio.SettingsBindFlags.DEFAULT);
-        group.add(enableRow);
+        globalGroup.add(enableRow);
 
-        // File picker row
         const currentPath = settings.get_string('sound-file');
         const fileRow = new Adw.ActionRow({
             title: _('Sound file'),
@@ -253,69 +253,194 @@ export default class SpanGNotificationsPrefs extends ExtensionPreferences {
 
         const fileLabel = new Gtk.Label({
             label: currentPath ? GLib.path_get_basename(currentPath) : _('(none – silence)'),
-            ellipsize: 3, // Pango.EllipsizeMode.END
+            ellipsize: 3,
+            xalign: 1,
+            valign: Gtk.Align.CENTER,
+            hexpand: true,
+        });
+        const chooseBtn = new Gtk.Button({label: _('Choose…'), valign: Gtk.Align.CENTER});
+        chooseBtn.connect('clicked', () => this._openFilePicker(settings, fileLabel, window));
+        const clearBtn = new Gtk.Button({label: _('Clear'), valign: Gtk.Align.CENTER});
+        clearBtn.connect('clicked', () => {
+            settings.set_string('sound-file', '');
+            fileLabel.label = _('(none – silence)');
+        });
+        fileRow.add_suffix(fileLabel);
+        fileRow.add_suffix(chooseBtn);
+        fileRow.add_suffix(clearBtn);
+        globalGroup.add(fileRow);
+
+        // --- Per-application overrides group ---
+        const addBtn = new Gtk.Button({label: _('Add'), valign: Gtk.Align.CENTER});
+        addBtn.add_css_class('suggested-action');
+
+        const appGroup = new Adw.PreferencesGroup({
+            title: _('Per-application overrides'),
+            description: _('Override the sound for a specific application. Takes precedence over the global setting; apps not listed here use OS sound or the global override above.'),
+            header_suffix: addBtn,
+        });
+        page.add(appGroup);
+
+        let appRows = [];
+        const refreshAppRows = () => {
+            appRows.forEach(r => appGroup.remove(r));
+            appRows = [];
+            const overrides = settings.get_value('app-sound-overrides').deep_unpack();
+            Object.entries(overrides)
+                .sort(([a], [b]) => a.localeCompare(b))
+                .forEach(([appTitle, soundPath]) => {
+                    const row = this._buildAppOverrideRow(settings, appTitle, soundPath, window);
+                    appGroup.add(row);
+                    appRows.push(row);
+                });
+        };
+        settings.connect('changed::app-sound-overrides', refreshAppRows);
+        refreshAppRows();
+
+        addBtn.connect('clicked', () => this._showAddOverrideDialog(settings, window));
+
+        return page;
+    }
+
+    _buildAppOverrideRow(settings, appTitle, soundPath, window) {
+        const row = new Adw.ActionRow({title: appTitle});
+
+        const fileLabel = new Gtk.Label({
+            label: soundPath ? GLib.path_get_basename(soundPath) : _('(silence)'),
+            ellipsize: 3,
             xalign: 1,
             valign: Gtk.Align.CENTER,
             hexpand: true,
         });
 
-        const chooseBtn = new Gtk.Button({
-            label: _('Choose…'),
+        const changeBtn = new Gtk.Button({label: _('Change…'), valign: Gtk.Align.CENTER});
+        changeBtn.connect('clicked', () => this._openFilePickerForApp(settings, appTitle, window));
+
+        const silenceBtn = new Gtk.Button({label: _('Silence'), valign: Gtk.Align.CENTER});
+        silenceBtn.connect('clicked', () => {
+            const ov = {...settings.get_value('app-sound-overrides').deep_unpack()};
+            ov[appTitle] = '';
+            settings.set_value('app-sound-overrides', new GLib.Variant('a{ss}', ov));
+        });
+
+        const removeBtn = new Gtk.Button({
+            icon_name: 'list-remove-symbolic',
+            valign: Gtk.Align.CENTER,
+            tooltip_text: _('Remove override'),
+        });
+        removeBtn.add_css_class('destructive-action');
+        removeBtn.connect('clicked', () => {
+            const ov = {...settings.get_value('app-sound-overrides').deep_unpack()};
+            delete ov[appTitle];
+            settings.set_value('app-sound-overrides', new GLib.Variant('a{ss}', ov));
+        });
+
+        row.add_suffix(fileLabel);
+        row.add_suffix(changeBtn);
+        row.add_suffix(silenceBtn);
+        row.add_suffix(removeBtn);
+        return row;
+    }
+
+    _showAddOverrideDialog(settings, window) {
+        const apps = Gio.AppInfo.get_all()
+            .filter(app => app.should_show())
+            .sort((a, b) => a.get_display_name().localeCompare(b.get_display_name()));
+
+        const model = new Gtk.StringList();
+        apps.forEach(app => model.append(app.get_display_name()));
+
+        const expr = new Gtk.PropertyExpression(Gtk.StringObject.$gtype, null, 'string');
+        const dropdown = new Gtk.DropDown({
+            model,
+            expression: expr,
+            enable_search: true,
+            selected: 0,
+            hexpand: true,
             valign: Gtk.Align.CENTER,
         });
-        chooseBtn.connect('clicked', () => {
-            this._openFilePicker(settings, fileLabel, window);
+
+        const listBox = new Gtk.ListBox({
+            selection_mode: Gtk.SelectionMode.NONE,
+            css_classes: ['boxed-list'],
+        });
+        const appRow = new Adw.ActionRow({title: _('Application')});
+        appRow.add_suffix(dropdown);
+        listBox.append(appRow);
+
+        const dialog = new Adw.AlertDialog({heading: _('Add application override')});
+        dialog.set_extra_child(listBox);
+        dialog.add_response('cancel', _('Cancel'));
+        dialog.add_response('silence', _('Add (silence)'));
+        dialog.add_response('choose', _('Add with sound…'));
+        dialog.set_response_appearance('choose', Adw.ResponseAppearance.SUGGESTED);
+
+        dialog.connect('response', (_dlg, response) => {
+            if (response === 'cancel')
+                return;
+
+            const appName = apps[dropdown.selected]?.get_display_name();
+            if (!appName)
+                return;
+
+            if (response === 'silence') {
+                const ov = {...settings.get_value('app-sound-overrides').deep_unpack()};
+                ov[appName] = '';
+                settings.set_value('app-sound-overrides', new GLib.Variant('a{ss}', ov));
+                return;
+            }
+
+            // 'choose': AlertDialog is already dismissed at this point —
+            // open the file picker against the bare window, no modal conflict.
+            this._openFileDialogRaw(window, null, path => {
+                const ov = {...settings.get_value('app-sound-overrides').deep_unpack()};
+                ov[appName] = path;
+                settings.set_value('app-sound-overrides', new GLib.Variant('a{ss}', ov));
+            });
         });
 
-        const clearBtn = new Gtk.Button({
-            label: _('Clear'),
-            valign: Gtk.Align.CENTER,
-        });
-        clearBtn.connect('clicked', () => {
-            settings.set_string('sound-file', '');
-            fileLabel.label = _('(none – silence)');
-        });
-
-        fileRow.add_suffix(fileLabel);
-        fileRow.add_suffix(chooseBtn);
-        fileRow.add_suffix(clearBtn);
-        group.add(fileRow);
-
-        return page;
+        dialog.present(window);
     }
 
     _openFilePicker(settings, fileLabel, window) {
-        const dialog = new Gtk.FileDialog({
-            title: _('Select a sound file'),
-            modal: true,
+        this._openFileDialogRaw(window, settings.get_string('sound-file'), path => {
+            settings.set_string('sound-file', path);
+            fileLabel.label = GLib.path_get_basename(path);
         });
+    }
 
-        // Filter for audio files
+    _openFilePickerForApp(settings, appTitle, window) {
+        const currentPath = settings.get_value('app-sound-overrides').deep_unpack()[appTitle] ?? '';
+        this._openFileDialogRaw(window, currentPath, path => {
+            const ov = {...settings.get_value('app-sound-overrides').deep_unpack()};
+            ov[appTitle] = path;
+            settings.set_value('app-sound-overrides', new GLib.Variant('a{ss}', ov));
+        });
+    }
+
+    _openFileDialogRaw(window, initialPath, onPicked) {
+        const dialog = new Gtk.FileDialog({title: _('Select a sound file'), modal: true});
+
         const filter = new Gtk.FileFilter();
         filter.set_name(_('Audio files'));
         ['audio/mpeg', 'audio/ogg', 'audio/x-wav', 'audio/flac', 'audio/aac'].forEach(
             mime => filter.add_mime_type(mime));
         ['*.mp3', '*.ogg', '*.wav', '*.flac', '*.aac', '*.oga'].forEach(
             pat => filter.add_pattern(pat));
-
         const filters = new Gio.ListStore({item_type: Gtk.FileFilter.$gtype});
         filters.append(filter);
         dialog.filters = filters;
 
-        const currentPath = settings.get_string('sound-file');
-        if (currentPath) {
-            try {
-                dialog.initial_file = Gio.File.new_for_path(currentPath);
-            } catch { /* ignore */ }
+        if (initialPath) {
+            try { dialog.initial_file = Gio.File.new_for_path(initialPath); } catch { /* ignore */ }
         }
 
         dialog.open(window, null, (dlg, result) => {
             try {
-                const file = dlg.open_finish(result);
-                const path = file.get_path();
-                settings.set_string('sound-file', path);
-                fileLabel.label = GLib.path_get_basename(path);
-            } catch { /* user cancelled */ }
+                const path = dlg.open_finish(result)?.get_path();
+                if (path)
+                    onPicked(path);
+            } catch { /* cancelled */ }
         });
     }
 

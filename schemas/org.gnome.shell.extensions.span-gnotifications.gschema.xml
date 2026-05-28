@@ -82,6 +82,12 @@
       <summary>Custom sound file path; empty string means silence</summary>
     </key>
 
+    <key name="app-sound-overrides" type="a{ss}">
+      <default>{}</default>
+      <summary>Per-application sound overrides</summary>
+      <description>Maps notification source title to a sound file path. An empty path means silence. Takes precedence over the global sound-override setting.</description>
+    </key>
+
     <key name="notification-timeout" type="i">
       <default>4</default>
       <range min="1" max="30"/>

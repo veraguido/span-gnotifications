@@ -15,8 +15,24 @@ A GNOME Shell extension that lets you customise notification banners and distrib
 | **Appearance** | Background colour, text colour, banner width, inner padding |
 | **Typography** | Font size, font weight |
 | **Icon** | Show/hide, custom size |
-| **Sound** | Override with a custom audio file or silence all notifications |
+| **Sound** | Global override with a custom audio file or silence; per-application overrides |
 | **Fullscreen** | Show banners even while an application is running fullscreen |
+
+---
+
+## Sound override behaviour
+
+The extension evaluates sound overrides in priority order for every incoming notification:
+
+| Situation | Sound played |
+|---|---|
+| App has a per-app override with a sound file set | Custom file for that app |
+| App has a per-app override set to **Silence** | Silent (no sound) |
+| App has **no** per-app override — global override **on**, sound file set | Custom file for all apps |
+| App has **no** per-app override — global override **on**, no file | Silent (no sound) |
+| App has **no** per-app override — global override **off** | OS default sound |
+
+**Per-app overrides always take precedence over the global setting.** Removing a per-app override (the trash icon) returns that app to whichever behaviour the global setting dictates.
 
 ---
 

@@ -128,6 +128,22 @@ export default class SpanGNotifications extends Extension {
         //   • apply JS-level banner tweaks after the original runs
         //   • schedule mirror creation for duplicate-all
         this._injectionManager.overrideMethod(tray, '_showNotification', orig => function () {
+            // Suppress window-demands-attention notifications ("X is ready") only
+            // when the source app is unidentified (no .desktop entry).
+            // forFeedback is set exclusively by windowAttentionHandler.js.
+            // NotificationPolicy.newForApp() sets policy.id to the app's desktop ID
+            // for identified apps, or to the string 'generic' for window-backed /
+            // unidentified apps (NotificationGenericPolicy).
+            const candidate = this._notificationQueue[0];
+            if (candidate?.forFeedback && candidate.source?.policy?.id === 'generic') {
+                this._notificationQueue.shift();
+                GLib.idle_add(GLib.PRIORITY_DEFAULT, () => {
+                    this._updateState();
+                    return GLib.SOURCE_REMOVE;
+                });
+                return;
+            }
+
             const mode = ext._settings.get_string('monitor-mode');
             const c = ext._findMonitorConstraint();
 
@@ -147,8 +163,15 @@ export default class SpanGNotifications extends Extension {
 
             if (mode === 'duplicate-all' && this._notification) {
                 const notif = this._notification;
+                const trayRef = this;
                 GLib.idle_add(GLib.PRIORITY_DEFAULT, () => {
-                    ext._spawnMirrors(notif);
+                    // Only spawn mirrors if the tray is still showing this exact
+                    // notification.  Without this guard, a fast hide (e.g. an
+                    // auto-focus extension focusing the window before the idle fires)
+                    // causes _hideNotification to run first with an empty _mirrors
+                    // array, leaving an orphaned mirror on secondary monitors.
+                    if (trayRef._notification === notif)
+                        ext._spawnMirrors(notif);
                     return GLib.SOURCE_REMOVE;
                 });
             }
@@ -313,20 +336,34 @@ export default class SpanGNotifications extends Extension {
         });
 
         // --- Notification.playSound --------------------------------------
-        // When sound-override is enabled: play a custom file or go silent.
+        // Per-app overrides take precedence over the global override.
+        // Both treat an empty path as "silence this app".
         this._injectionManager.overrideMethod(
             MessageTray.Notification.prototype, 'playSound',
             orig => function () {
-                if (!ext._settings.get_boolean('sound-override-enabled')) {
+                const appTitle = this.source?.title ?? '';
+                // Guard against old schema instances that pre-date this key.
+                let perApp = {};
+                try {
+                    perApp = ext._settings.get_value('app-sound-overrides').deep_unpack();
+                } catch { /* key absent — treat as no overrides */ }
+
+                let path;
+                if (appTitle in perApp) {
+                    if (!this.source.policy.enableSound)
+                        return;
+                    path = perApp[appTitle]; // may be '' → silence
+                } else if (ext._settings.get_boolean('sound-override-enabled')) {
+                    if (!this.source.policy.enableSound)
+                        return;
+                    path = ext._settings.get_string('sound-file');
+                } else {
                     orig.call(this);
                     return;
                 }
-                if (!this.source.policy.enableSound)
-                    return;
 
-                const path = ext._settings.get_string('sound-file');
                 if (!path)
-                    return; // empty path = silence
+                    return; // empty = silence
 
                 const file = Gio.File.new_for_path(path);
                 if (file.query_exists(null))
