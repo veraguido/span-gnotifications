@@ -562,9 +562,9 @@ export default class SpanGNotifications extends Extension {
   margin-right: ${marginRight}px;
 }
 
-.notification-banner .message {
-  background-color: ${bg};
-  padding: ${p}px;
+.notification-banner {
+  background-color: ${bg} !important;
+  padding: ${p}px !important;
 }
 
 .notification-banner .message-title {
