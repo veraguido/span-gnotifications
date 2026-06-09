@@ -30,6 +30,11 @@
     </key>
 
     <!-- Colours -->
+    <key name="overwrite-colors" type="b">
+      <default>true</default>
+      <summary>Overwrite notification colours with custom values</summary>
+    </key>
+
     <key name="background-color" type="s">
       <default>'rgba(54,54,58,0.94)'</default>
       <summary>Background colour (CSS rgba)</summary>

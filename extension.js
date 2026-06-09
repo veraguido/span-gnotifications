@@ -72,7 +72,8 @@ export default class SpanGNotifications extends Extension {
         }
 
         if (['background-color', 'text-color', 'font-size', 'font-weight',
-             'notification-width', 'notification-padding', 'notification-margin'].includes(key))
+             'notification-width', 'notification-padding', 'notification-margin',
+             'overwrite-colors'].includes(key))
             this._refreshCSS();
 
         // All other keys (monitor-mode, show-icon, icon-size, sound-*)
@@ -532,14 +533,15 @@ export default class SpanGNotifications extends Extension {
     }
 
     _buildCSS() {
-        const w   = this._settings.get_int('notification-width');
-        const p   = this._settings.get_int('notification-padding');
-        const bg  = this._settings.get_string('background-color');
-        const fg  = this._settings.get_string('text-color');
-        const fs  = this._settings.get_int('font-size');
-        const fw  = this._settings.get_string('font-weight');
-        const mg  = this._settings.get_int('notification-margin');
-        const pos = this._settings.get_string('notification-position');
+        const w        = this._settings.get_int('notification-width');
+        const p        = this._settings.get_int('notification-padding');
+        const bg       = this._settings.get_string('background-color');
+        const fg       = this._settings.get_string('text-color');
+        const fs       = this._settings.get_int('font-size');
+        const fw       = this._settings.get_string('font-weight');
+        const mg       = this._settings.get_int('notification-margin');
+        const pos      = this._settings.get_string('notification-position');
+        const owColors = this._settings.get_boolean('overwrite-colors');
 
         const isTop    = pos.startsWith('top');
         const isBottom = pos.startsWith('bottom');
@@ -560,32 +562,29 @@ export default class SpanGNotifications extends Extension {
   margin-bottom: ${marginBottom}px;
   margin-left: ${marginLeft}px;
   margin-right: ${marginRight}px;
-}
-
-.notification-banner {
-  background-color: ${bg} !important;
   padding: ${p}px !important;
+  ${owColors ? `background-color: ${bg} !important;` : ''}
 }
 
 .notification-banner .message-title {
-  color: ${fg};
+  ${owColors ? `color: ${fg};` : ''}
   font-size: ${fs + 1}pt;
   font-weight: bold;
 }
 
 .notification-banner .message-body {
-  color: ${fg};
+  ${owColors ? `color: ${fg};` : ''}
   font-size: ${fs}pt;
   font-weight: ${fw};
 }
 
 .notification-banner .message-source-title {
-  color: ${fg};
+  ${owColors ? `color: ${fg};` : ''}
   font-size: ${Math.max(6, fs - 1)}pt;
 }
 
 .notification-banner .event-time {
-  color: ${fg};
+  ${owColors ? `color: ${fg};` : ''}
   font-size: ${Math.max(6, fs - 2)}pt;
 }
 `;

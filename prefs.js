@@ -77,8 +77,20 @@ export default class SpanGNotificationsPrefs extends ExtensionPreferences {
         const colourGroup = new Adw.PreferencesGroup({title: _('Colours')});
         page.add(colourGroup);
 
-        colourGroup.add(this._colorRow(_('Background colour'), settings, 'background-color'));
-        colourGroup.add(this._colorRow(_('Text colour'), settings, 'text-color'));
+        const overwriteRow = new Adw.SwitchRow({
+            title: _('Overwrite notification colours'),
+            subtitle: _('When off, the current GNOME theme colours are used'),
+        });
+        settings.bind('overwrite-colors', overwriteRow, 'active', Gio.SettingsBindFlags.DEFAULT);
+        colourGroup.add(overwriteRow);
+
+        const bgRow = this._colorRow(_('Background colour'), settings, 'background-color');
+        settings.bind('overwrite-colors', bgRow, 'sensitive', Gio.SettingsBindFlags.DEFAULT);
+        colourGroup.add(bgRow);
+
+        const fgRow = this._colorRow(_('Text colour'), settings, 'text-color');
+        settings.bind('overwrite-colors', fgRow, 'sensitive', Gio.SettingsBindFlags.DEFAULT);
+        colourGroup.add(fgRow);
 
         // --- Typography group ---
         const typGroup = new Adw.PreferencesGroup({title: _('Typography')});
